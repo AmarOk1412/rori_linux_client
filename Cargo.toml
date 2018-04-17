@@ -1,0 +1,7 @@
+[package]
+name = "rori_linux_client"
+version = "0.1.0"
+authors = ["Sébastien Blin <contact@enconn.fr>"]
+
+[dependencies]
+qmlrs = "0.1.1"
