@@ -1,4 +1,4 @@
-import QtQuick 2.0
+import QtQuick 2.7
 import QtQuick.Window 2.0
 import QtQuick.Controls 1.3
 import QtQuick.Controls.Styles 1.4
@@ -80,29 +80,52 @@ ApplicationWindow {
 
     Text {
         id: textRori
-        text: "Hei, it's been a long time!"
+        text: ""
         font.family: "Deja Vu"
         y: textRoriY
+        width: 9 * Screen.width / 10
+        horizontalAlignment: TextEdit.AlignHCenter
+        wrapMode: Text.Wrap
         x: Screen.width / 2 - width / 2
         font.pointSize: 35
         color: "#ffdad3"
-        opacity: 0
+    }
 
-        SequentialAnimation on opacity {
-            loops: Animation.Infinite
-            NumberAnimation { from: 0; to: 1; duration: 500 }
-            PauseAnimation { duration: 2000 }
-            NumberAnimation { from: 1; to: 0; duration: 500 }
-            PauseAnimation { duration: 2000 }
-        }
 
-        SequentialAnimation on y {
-            loops: Animation.Infinite
-            NumberAnimation { from: textRoriY - 100; to: textRoriY; duration: 500 }
-            PauseAnimation { duration: 2000 }
-            NumberAnimation { from: textRoriY; to: textRoriY - 100; duration: 500 }
-            PauseAnimation { duration: 2000 }
-        }
+    NumberAnimation {
+        id: unshowRORIText
+        target: textRori
+        properties: "opacity"
+        to: 0.0
+        easing.type: Easing.InOutQuad
+        duration: 500
+    }
+
+    NumberAnimation {
+        id: downRORIText
+        target: textRori
+        properties: "y"
+        to: textRoriY
+        easing.type: Easing.InOutQuad
+        duration: 500
+    }
+
+    NumberAnimation {
+       id: showRORIText
+       target: textRori
+       properties: "opacity"
+       to: 1.0
+       easing.type: Easing.InOutQuad
+       duration: 500
+    }
+
+    NumberAnimation {
+        id: upRORIText
+        target: textRori
+        properties: "y"
+        to: textRoriY - 100
+        easing.type: Easing.InOutQuad
+        duration: 500
     }
 
     TextField {
@@ -126,9 +149,27 @@ ApplicationWindow {
         }
       }
 
+      Keys.onPressed: {
+        unshowRORIText.start()
+        upRORIText.start()
+      }
+
       Keys.onReturnPressed: {
+        sharedprop.set_user_text(text)
         text = ""
       }
+    }
+
+    Timer {
+        interval: 250; running: true; repeat: true
+        onTriggered: {
+          var new_rori_text = sharedprop.get_rori_text()
+          if (new_rori_text != textRori.text) {
+            textRori.text = new_rori_text
+            showRORIText.start()
+            downRORIText.start()
+          }
+        }
     }
 
 

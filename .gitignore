@@ -5,3 +5,7 @@ Cargo.lock
 
 # QML
 *.qmlc
+
+
+todo
+config.json
