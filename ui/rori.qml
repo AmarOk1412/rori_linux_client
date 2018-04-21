@@ -1,6 +1,7 @@
 import QtQuick 2.0
 import QtQuick.Window 2.0
-import QtQuick.Controls 1.1
+import QtQuick.Controls 1.3
+import QtQuick.Controls.Styles 1.4
 
 ApplicationWindow {
     id: root
@@ -104,32 +105,32 @@ ApplicationWindow {
         }
     }
 
-    Text {
-        id: textUser
-        font.family: "Deja Vu"
-        text: "I want some cake! I want some cake! I want some cake! I want some cake! I want some cake! I want some cake!\nI want some cake! I want some cake! I want some cake! I want some cake! I want some cake! I want some cake!"
-        y: textUserY
-        x: Screen.width / 2 - width / 2
-        font.pointSize: 35
-        color: "#ffdad3"
-        opacity: 0
+    TextField {
+      id: textUser
+      font.family: "Deja Vu"
+      y: textUserY
+      width: Screen.width
+      height: Screen.height - textUserY
+      horizontalAlignment: TextEdit.AlignHCenter
+      font.pointSize: 35
+      inputMethodHints: Qt.ImhMultiLine
+      focus: true
 
-        SequentialAnimation on opacity {
-            loops: Animation.Infinite
-            PauseAnimation { duration: 2000 }
-            NumberAnimation { from: 0; to: 1; duration: 500 }
-            PauseAnimation { duration: 2000 }
-            NumberAnimation { from: 1; to: 0; duration: 500 }
-        }
+      style: TextFieldStyle {
+        textColor: "#ffdad3"
 
-        SequentialAnimation on y {
-            loops: Animation.Infinite
-            PauseAnimation { duration: 2000 }
-            NumberAnimation { from: textUserY + 100; to: textUserY; duration: 500 }
-            PauseAnimation { duration: 2000 }
-            NumberAnimation { from: textUserY; to: textUserY + 100; duration: 500 }
+        background: Rectangle {
+            color: "transparent"
+            radius: 0
+            border.width: 0
         }
+      }
+
+      Keys.onReturnPressed: {
+        text = ""
+      }
     }
+
 
     SequentialAnimation on color {
         loops: Animation.Infinite
