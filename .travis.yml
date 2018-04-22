@@ -3,13 +3,8 @@ rust:
   - stable
   - nightly
 sudo: true
-git:
-    submodules: false
-before_install:
-  - sed -i 's/git@github.com:/https:\/\/github.com\//' .gitmodules
-  - git submodule update --init --recursive
 install:
-  - sudo apt-get install -y libdbus-1-dev openssl
+  - sudo apt-get install -y libdbus-1-dev openssl libglu1-mesa-dev build-essential qtbase5-dev qt5-default qtdeclarative5-dev
   - |
     # tarpaulin deps
     if [[ "$TRAVIS_RUST_VERSION" == nightly ]]; then
