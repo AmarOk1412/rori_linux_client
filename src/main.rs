@@ -31,6 +31,7 @@ extern crate env_logger;
 extern crate log;
 #[macro_use]
 extern crate qmlrs;
+extern crate reqwest;
 extern crate serde;
 extern crate serde_json;
 #[macro_use]
@@ -60,30 +61,56 @@ use std::thread;
 pub struct ConfigFile {
     ring_id: String,
     rori_server: String,
+    rori_ring_id: String,
     username: String,
 }
 
 /**
  * Generate a config file
- * NOTE: will move into the UI ASAP
  */
-fn create_config_file() {
+fn create_config_file(rori_text: &Arc<Mutex<String>>, user_text: &Arc<Mutex<String>>) {
+    *rori_text.lock().unwrap() = String::from("What RORI do you want?");
+    let mut rori_server = String::new();
+    let mut rori_ring_id = String::new();
+    let mut done = false;
+    while !done {
+        let user_entry = user_text.lock().unwrap().clone();
+        if user_entry != "" {
+            rori_server = user_entry;
+            rori_ring_id = Endpoint::get_ring_id(&rori_server, &String::from("rori"));
+            *user_text.lock().unwrap() = String::new();
+            done = true;
+        }
+    }
+
+    *rori_text.lock().unwrap() = String::from("Under what username?");
+    let mut username = String::new();
+    done = false;
+    while !done {
+        let user_entry = user_text.lock().unwrap().clone();
+        if user_entry != "" {
+            username = user_entry;
+            *user_text.lock().unwrap() = String::new();
+            done = true;
+        }
+    }
+
     let accounts = Endpoint::get_account_list();
     let mut chosen_acc = Account::null();
     for account in accounts {
-        if account.alias == "rori_linux_client" {
+        if account.alias == username {
             chosen_acc = account;
         }
     }
     if chosen_acc.id == "" {
         // Create ring account
-        Endpoint::add_account("rori_linux_client", "", false);
+        Endpoint::add_account(&*username, "", false);
         // Let some time for the daemon
         let three_secs = Duration::from_millis(3000);
         thread::sleep(three_secs);
         let accounts = Endpoint::get_account_list();
         for account in accounts {
-            if account.alias == "rori_linux_client" {
+            if account.alias == username {
                 chosen_acc = account;
             }
         }
@@ -95,8 +122,9 @@ fn create_config_file() {
 
     let config = ConfigFile {
         ring_id: chosen_acc.id,
-        rori_server: String::from("127.0.0.1:1412"), // TODO
-        username: String::new(),
+        rori_server: rori_server,
+        rori_ring_id: rori_ring_id,
+        username: username,
     };
     let config = serde_json::to_string_pretty(&config).unwrap_or(String::new());
     let mut file = File::create("config.json").ok().expect("config.json found.");
@@ -107,41 +135,48 @@ fn main() {
     // Init logging
     env_logger::init();
 
-    // if not config, create it
-    if !Path::new("config.json").exists() {
-        create_config_file();
-    }
-
-    if !Path::new("config.json").exists() {
-        error!("No config file found");
-        return;
-    }
-
-    // This script load config from config.json
-    let mut file = File::open("config.json").ok()
-        .expect("Config file not found");
-    let mut config = String::new();
-    file.read_to_string(&mut config).ok()
-        .expect("failed to read!");
-    let config: Value = from_str(&*config).ok()
-                        .expect("Incorrect config file. Please check config.json");
-
     let shared_prop = SharedProp {
         rori_text: Arc::new(Mutex::new(String::new())),
-        user_text: Arc::new(Mutex::new(String::new()))
+        user_text: Arc::new(Mutex::new(String::new())),
+        logged: Arc::new(Mutex::new(false)),
     };
     let rori_text = shared_prop.rori_text.clone();
     let user_text = shared_prop.user_text.clone();
-    // Useless arc?
-    let shared_endpoint : Arc<Mutex<Endpoint>> = Arc::new(Mutex::new(
-        Endpoint::init(config["ring_id"].as_str().unwrap_or(""))
-        .ok().expect("Can't initialize ConfigurationEndpoint"))
-    );
-    let shared_endpoint_cloned = shared_endpoint.clone();
+    let user_logged = shared_prop.logged.clone();
     let stop = Arc::new(AtomicBool::new(false));
     let stop_cloned = stop.clone();
     let handle_signals = thread::spawn(move || {
-        Endpoint::handle_signals(shared_endpoint_cloned, stop_cloned, rori_text, user_text);
+        // if not config, create it
+        if !Path::new("config.json").exists() {
+            create_config_file(&rori_text, &user_text);
+        }
+
+        if !Path::new("config.json").exists() {
+            error!("No config file found");
+            return;
+        }
+
+        // This script load config from config.json
+        let mut file = File::open("config.json").ok()
+            .expect("Config file not found");
+        let mut config = String::new();
+        file.read_to_string(&mut config).ok()
+            .expect("failed to read!");
+        let config: Value = from_str(&*config).ok()
+                            .expect("Incorrect config file. Please check config.json");
+
+        *rori_text.lock().unwrap() = String::from("Connecting...");
+        let shared_endpoint : Arc<Mutex<Endpoint>> = Arc::new(Mutex::new(
+            Endpoint::init(config["ring_id"].as_str().unwrap_or(""),
+                           config["rori_server"].as_str().unwrap_or(""),
+                           config["rori_ring_id"].as_str().unwrap_or(""))
+            .ok().expect("Can't initialize ConfigurationEndpoint"))
+        );
+        Endpoint::login(shared_endpoint.clone(), &user_logged);
+        // HACK For now... waiting for certificate validation
+        *user_logged.lock().unwrap() = true;
+        *rori_text.lock().unwrap() = String::new();
+        Endpoint::handle_signals(shared_endpoint, stop_cloned, rori_text, user_text, user_logged);
     });
     let mut engine = qmlrs::Engine::new();
     engine.load_local_file("ui/rori.qml");

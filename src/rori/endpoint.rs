@@ -27,8 +27,10 @@
 
 use dbus::{Connection, ConnectionItem, BusType, Message};
 use dbus::arg::{Array, Dict};
+use reqwest;
 use rori::account::Account;
 use rori::interaction::Interaction;
+use serde_json::{Value, from_str};
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
@@ -41,6 +43,8 @@ use time;
 pub struct Endpoint {
     pub account: Account,
 
+    rori_server: String,
+    rori_ring_id: String,
     ring_dbus: &'static str,
     configuration_path: &'static str,
     configuration_iface: &'static str,
@@ -52,10 +56,12 @@ impl Endpoint {
      * @param ring_id to retrieve
      * @return a Manager if success, else an error
      */
-    pub fn init(ring_id: &str) -> Result<Endpoint, &'static str> {
+    pub fn init(ring_id: &str, rori_server: &str, rori_ring_id: &str) -> Result<Endpoint, &'static str> {
         let mut manager = Endpoint {
             account: Account::null(),
 
+            rori_server: String::from(rori_server),
+            rori_ring_id: String::from(rori_ring_id),
             ring_dbus: "cx.ring.Ring",
             configuration_path: "/cx/ring/Ring/ConfigurationManager",
             configuration_iface: "cx.ring.Ring.ConfigurationManager",
@@ -73,17 +79,33 @@ impl Endpoint {
         Ok(manager)
     }
 
+    pub fn login(manager: Arc<Mutex<Endpoint>>, user_logged: &Arc<Mutex<bool>>) {
+        // TODO 1. get if ring_id already match to username (=logged)
+        // 2. if not, get if username already registered
+        let rori_server = manager.lock().unwrap().rori_server.clone();
+        let acc_linked = manager.lock().unwrap().account.clone();
+        let username_registered = Endpoint::get_ring_id(&rori_server, &acc_linked.alias) != "";
+        if username_registered {
+            // 3. TODO if already registered, /link
+            manager.lock().unwrap().send_text_interaction_to_rori(&*format!("/link {}", acc_linked.alias));
+        } else {
+            // 4. else /register
+            manager.lock().unwrap().send_text_interaction_to_rori(&*format!("/register {}", acc_linked.alias));
+        }
+    }
+
     /**
      * Listen from interresting signals from dbus and call handlers
      * @param self
      */
-    pub fn handle_signals(manager: Arc<Mutex<Endpoint>>, stop: Arc<AtomicBool>, rori_text: Arc<Mutex<String>>, user_text: Arc<Mutex<String>>) {
+    pub fn handle_signals(manager: Arc<Mutex<Endpoint>>, stop: Arc<AtomicBool>, rori_text: Arc<Mutex<String>>, user_text: Arc<Mutex<String>>, user_logged: Arc<Mutex<bool>>) {
         // Use another dbus connection to listen signals.
         let dbus_listener = Connection::get_private(BusType::Session).unwrap();
         dbus_listener.add_match("interface=cx.ring.Ring.ConfigurationManager,member=incomingAccountMessage").unwrap();
         dbus_listener.add_match("interface=cx.ring.Ring.ConfigurationManager,member=incomingTrustRequest").unwrap();
         dbus_listener.add_match("interface=cx.ring.Ring.ConfigurationManager,member=accountsChanged").unwrap();
         dbus_listener.add_match("interface=cx.ring.Ring.ConfigurationManager,member=registrationStateChanged").unwrap();
+        let rori_ring_id = manager.lock().unwrap().rori_ring_id.clone();
         // For each signals, call handlers.
         for i in dbus_listener.iter(100) {
             let mut m = manager.lock().unwrap();
@@ -92,8 +114,21 @@ impl Endpoint {
             if let Some((account_id, interaction)) = m.handle_interactions(&i) {
                 info!("New interation for {}: {}", account_id, interaction);
                 if account_id == m.account.id {
-                    if interaction.author_ring_id == "TODO" && interaction.body != "" {
-                        *rori_text.lock().unwrap() = String::from(interaction.body);
+                    if interaction.author_ring_id == rori_ring_id && interaction.body != "" {
+                        match from_str(&interaction.body) {
+                            Ok(j) => {
+                                // Only if rori order
+                                let j: Value = j;
+                                if j["registered"].to_string() == "true" {
+                                    *user_logged.lock().unwrap() = true;
+                                    *rori_text.lock().unwrap() = String::new();
+                                }
+                            },
+                            _ => {
+                                *rori_text.lock().unwrap() = String::from(interaction.body);
+                            }
+                        };
+
                     }
                 }
             };
@@ -110,6 +145,30 @@ impl Endpoint {
             }
             if stop.load(Ordering::SeqCst) {
                 break;
+            }
+        }
+    }
+
+    pub fn get_ring_id(nameserver: &String, name: &String) -> String {
+        // NOTE: this will not work for now if certificate is self signed
+        // See: https://github.com/seanmonstar/reqwest/pull/198
+        let mut ns = nameserver.clone();
+        if ns.find("http") != Some(0) {
+            ns = String::from("https://") + &*ns;
+        }
+        let mut conn = match reqwest::get(&*format!("{}/name/{}", ns, name)) {
+            Ok(conn) => conn,
+            _ => {
+                return String::from("")
+            }
+        };
+        match conn.text() {
+            Ok(body) => {
+                let v: Value = from_str(&body).unwrap();
+                return v["addr"].to_string();
+            },
+            _ => {
+                return String::from("");
             }
         }
     }
@@ -356,7 +415,8 @@ impl Endpoint {
         }
         let dbus = conn.unwrap();
         // TODO
-        let response = dbus.send_with_reply_and_block(dbus_msg.unwrap().append3(&*self.account.id, "TODO", payloads), 2000).unwrap();
+        let response = dbus.send_with_reply_and_block(dbus_msg.unwrap().append3(&*self.account.id,
+            self.rori_ring_id.clone(), payloads), 2000).unwrap();
         // sendTextMessage returns one argument, which is a u64.
         let interaction_id: u64  = match response.get1() {
             Some(interaction_id) => interaction_id,

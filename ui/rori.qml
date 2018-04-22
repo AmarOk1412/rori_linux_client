@@ -19,8 +19,12 @@ ApplicationWindow {
     property int animationDuration: 2000
     property int textRoriY: 6 * Screen.height / 10
     property int textUserY: 8 * Screen.height / 10
+    property bool logged: false
+    property int loggedStep: 0
+    property int opacityR: 255
 
     onPosYChanged: canvas.requestPaint()
+    onOpacityRChanged: canvas.requestPaint()
 
     Behavior on posY {
        id: modifyPosY
@@ -40,27 +44,48 @@ ApplicationWindow {
        }
     }
 
+    Behavior on opacityR {
+       id: modifyOpacity
+       enabled: true
+       NumberAnimation {
+           duration: root.animationDuration
+           easing.type: Easing.InOutCubic
+       }
+    }
+
     Canvas {
         id: canvas
         width: Screen.width
         height: Screen.height
 
         onPaint: {
+            if (logged) {
+              opacityR = 255
+              if (posY == endPosY) {
+                posY = beginPosY
+                arcWidth = height / 10
+              } else if (posY == beginPosY) {
+                posY = endPosY
+                arcWidth = 11 * height / 101
+              }
+            } else {
+              if (opacityR == 0) {
+                opacityR = 255
+              } else if (opacityR == 255) {
+                opacityR = 0
+              }
+              if (posY != 2 * Screen.height / 9) {
+                posY = 2 * Screen.height / 9;
+              }
+            }
             var ctx = getContext("2d")
             ctx.reset()
             ctx.beginPath()
             var middle = width / 2
             ctx.arc(middle, posY, arcWidth, 0, 2 * Math.PI)
-            ctx.strokeStyle = "#ffdad3"
+            ctx.strokeStyle = 'rgba(255, 218, 211, ' + opacityR/255. +')'
             ctx.lineWidth = height / 100
             ctx.stroke()
-            if (posY == endPosY) {
-              posY = beginPosY
-              arcWidth = height / 10
-            } else if (posY == beginPosY) {
-              posY = endPosY
-              arcWidth = 11 * height / 101
-            }
 
             ctx.beginPath()
             ctx.scale(2, 0.1)
@@ -71,7 +96,7 @@ ApplicationWindow {
                                                     radiusShadow / 10,
                                                     middle / 2, yShadow,
                                                     radiusShadow);
-            gradient.addColorStop(0, 'rgba(0, 0, 0, 0.1)');
+            gradient.addColorStop(0, 'rgba(0, 0, 0, ' + opacityR/2550. +')');
             gradient.addColorStop(1, 'transparent');
             ctx.fillStyle = gradient;
             ctx.fill()
@@ -82,7 +107,8 @@ ApplicationWindow {
         id: textRori
         text: ""
         font.family: "Deja Vu"
-        y: textRoriY
+        y: textRoriY - 100
+        opacity: 0
         width: 9 * Screen.width / 10
         horizontalAlignment: TextEdit.AlignHCenter
         wrapMode: Text.Wrap
@@ -94,8 +120,8 @@ ApplicationWindow {
 
     NumberAnimation {
         id: unshowRORIText
-        target: textRori
         properties: "opacity"
+        target: textRori
         to: 0.0
         easing.type: Easing.InOutQuad
         duration: 500
@@ -150,11 +176,16 @@ ApplicationWindow {
       }
 
       Keys.onPressed: {
+        if (!logged) return
         unshowRORIText.start()
         upRORIText.start()
       }
 
       Keys.onReturnPressed: {
+        if (!logged) {
+          unshowRORIText.start()
+          upRORIText.start()
+        }
         sharedprop.set_user_text(text)
         text = ""
       }
@@ -163,6 +194,13 @@ ApplicationWindow {
     Timer {
         interval: 250; running: true; repeat: true
         onTriggered: {
+          if (!logged) {
+            logged = sharedprop.get_logged()
+            if (logged) {
+              posY = beginPosY
+            }
+          }
+
           var new_rori_text = sharedprop.get_rori_text()
           if (new_rori_text != textRori.text) {
             textRori.text = new_rori_text
