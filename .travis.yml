@@ -1,0 +1,31 @@
+language: rust
+rust:
+  - stable
+  - nightly
+sudo: true
+git:
+    submodules: false
+before_install:
+  - sed -i 's/git@github.com:/https:\/\/github.com\//' .gitmodules
+  - git submodule update --init --recursive
+install:
+  - sudo apt-get install -y libdbus-1-dev openssl
+  - |
+    # tarpaulin deps
+    if [[ "$TRAVIS_RUST_VERSION" == nightly ]]; then
+      sudo apt-get update -y && sudo apt-get -y install libssl-dev pkg-config cmake zlib1g-dev;
+      cargo install cargo-tarpaulin;
+    fi
+  - rustc -V
+before_script:
+  - "export DISPLAY=:99.0"
+  - "sh -e /etc/init.d/xvfb start"
+  - sleep 3 # give xvfb some time to start
+script:
+  - cargo build
+  - RUST_TEST_THREADS=1 cargo test -- --nocapture
+  - |
+    # tarpaulin deps
+    if [[ "$TRAVIS_RUST_VERSION" == nightly ]]; then
+      cargo tarpaulin --ciserver travis-ci --coveralls $TRAVIS_JOB_ID;
+    fi
