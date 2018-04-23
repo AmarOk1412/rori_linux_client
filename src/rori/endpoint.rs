@@ -87,10 +87,10 @@ impl Endpoint {
         let username_registered = Endpoint::get_ring_id(&rori_server, &acc_linked.alias) != "";
         if username_registered {
             // 3. TODO if already registered, /link
-            manager.lock().unwrap().send_text_interaction_to_rori(&*format!("/link {}", acc_linked.alias));
+            manager.lock().unwrap().send_interaction_to_rori(&*format!("/link {}", acc_linked.alias), "rori/command");
         } else {
             // 4. else /register
-            manager.lock().unwrap().send_text_interaction_to_rori(&*format!("/register {}", acc_linked.alias));
+            manager.lock().unwrap().send_interaction_to_rori(&*format!("/register {}", acc_linked.alias), "rori/command");
         }
     }
 
@@ -141,7 +141,7 @@ impl Endpoint {
             let utext = user_text.lock().unwrap().clone();
             if utext != "" {
                 *user_text.lock().unwrap() = String::new();
-                m.send_text_interaction_to_rori(&*utext);
+                m.send_interaction_to_rori(&*utext, "text/plain");
             }
             if stop.load(Ordering::SeqCst) {
                 break;
@@ -342,19 +342,19 @@ impl Endpoint {
         let (account_id, author_ring_id, payloads) = msg.get3::<&str, &str, Dict<&str, &str, _>>();
         let author_ring_id = author_ring_id.unwrap().to_string();
         let mut body = String::new();
+        let mut datatype = String::new();
         for detail in payloads.unwrap() {
-            // TODO handle other interactions
             match detail {
                 (key, value) => {
-                    if key == "text/plain" {
-                        body = value.to_string();
-                    }
+                    datatype = key.to_string();
+                    body = value.to_string();
                 }
             }
         };
         let interaction = Interaction {
             author_ring_id: author_ring_id,
             body: body,
+            datatype: datatype,
             time: time::now()
         };
         Some((account_id.unwrap().to_string(), interaction))
@@ -391,16 +391,15 @@ impl Endpoint {
     }
 
 
-
     /**
      * Send a new text message to rori
      * @param self
      * @param body text to send
      * @return the interaction id if success. TODO, watch message status (if received)
      */
-    fn send_text_interaction_to_rori(&self, body: &str) -> u64 {
+    fn send_interaction_to_rori(&self, body: &str, datatype: &str) -> u64 {
         let mut payloads: HashMap<&str, &str> = HashMap::new();
-        payloads.insert("text/plain", body);
+        payloads.insert(datatype, body);
         let payloads = Dict::new(payloads.iter());
 
         let dbus_msg = Message::new_method_call(self.ring_dbus, self.configuration_path, self.configuration_iface,
@@ -414,7 +413,6 @@ impl Endpoint {
             return 0;
         }
         let dbus = conn.unwrap();
-        // TODO
         let response = dbus.send_with_reply_and_block(dbus_msg.unwrap().append3(&*self.account.id,
             self.rori_ring_id.clone(), payloads), 2000).unwrap();
         // sendTextMessage returns one argument, which is a u64.
