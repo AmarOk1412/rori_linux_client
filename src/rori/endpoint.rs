@@ -33,6 +33,7 @@ use rori::interaction::Interaction;
 use serde_json::{Value, from_str};
 use std::collections::HashMap;
 use std::io::Read;
+use std::process::Command;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use time;
@@ -116,19 +117,27 @@ impl Endpoint {
                 info!("New interation for {}: {}", account_id, interaction);
                 if account_id == m.account.id {
                     if interaction.author_ring_id == rori_ring_id && interaction.body != "" {
-                        match from_str(&interaction.body) {
-                            Ok(j) => {
-                                // Only if rori order
-                                let j: Value = j;
-                                if j["registered"].to_string() == "true" {
-                                    *user_logged.lock().unwrap() = true;
-                                    *rori_text.lock().unwrap() = String::new();
+                        if interaction.datatype == "text/plain" {
+                            match from_str(&interaction.body) {
+                                Ok(j) => {
+                                    // Only if rori order
+                                    let j: Value = j;
+                                    if j["registered"].to_string() == "true" {
+                                        *user_logged.lock().unwrap() = true;
+                                        *rori_text.lock().unwrap() = String::new();
+                                    }
+                                },
+                                _ => {
+                                    *rori_text.lock().unwrap() = String::from(interaction.body);
                                 }
-                            },
-                            _ => {
-                                *rori_text.lock().unwrap() = String::from(interaction.body);
-                            }
-                        };
+                            };
+                        } else if interaction.datatype == "music" {
+                            Command::new("python3")
+                                .arg("scripts/music.py")
+                                .arg(&interaction.body)
+                                .spawn()
+                                .expect("music.py command failed to start");
+                        }
 
                     }
                 }
@@ -410,7 +419,7 @@ impl Endpoint {
      * @param body text to send
      * @return the interaction id if success. TODO, watch message status (if received)
      */
-    fn send_interaction_to_rori(&self, body: &str, datatype: &str) -> u64 {
+    pub fn send_interaction_to_rori(&self, body: &str, datatype: &str) -> u64 {
         let mut payloads: HashMap<&str, &str> = HashMap::new();
         payloads.insert(datatype, body);
         let payloads = Dict::new(payloads.iter());

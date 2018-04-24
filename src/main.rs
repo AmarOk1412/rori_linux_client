@@ -181,6 +181,8 @@ fn main() {
         // HACK For now... waiting for certificate validation
         *user_logged.lock().unwrap() = true;
         *rori_text.lock().unwrap() = String::new();
+        shared_endpoint.lock().unwrap().send_interaction_to_rori("/set_types music command", "rori/command"); // TODO move and remove pub
+
         Endpoint::handle_signals(shared_endpoint, stop_cloned, rori_text, user_text, user_logged);
     });
     let mut engine = qmlrs::Engine::new();
