@@ -32,6 +32,7 @@ use rori::account::Account;
 use rori::interaction::Interaction;
 use serde_json::{Value, from_str};
 use std::collections::HashMap;
+use std::io::Read;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use time;
@@ -150,27 +151,39 @@ impl Endpoint {
     }
 
     pub fn get_ring_id(nameserver: &String, name: &String) -> String {
-        // NOTE: this will not work for now if certificate is self signed
-        // See: https://github.com/seanmonstar/reqwest/pull/198
+        // NOTE/TODO: Remove this line when RORI will gennerate certificate with Let's Encrypt
+        // For now, self signed certificate and local dev, so it's OK
+        let client = reqwest::ClientBuilder::new()
+                    .danger_disable_certificate_validation_entirely()
+                    .build().unwrap();
+
         let mut ns = nameserver.clone();
         if ns.find("http") != Some(0) {
             ns = String::from("https://") + &*ns;
         }
-        let mut conn = match reqwest::get(&*format!("{}/name/{}", ns, name)) {
-            Ok(conn) => conn,
+        let mut res = match client.get(&*format!("{}/name/{}", ns, name)).send() {
+            Ok(res) => res,
             _ => {
-                return String::from("")
+                return String::new();
             }
         };
-        match conn.text() {
-            Ok(body) => {
-                let v: Value = from_str(&body).unwrap();
-                return v["addr"].to_string();
+
+        let mut body: String = String::new();
+        let _ = res.read_to_string(&mut body);
+        match from_str(&body) {
+            Ok(j) => {
+                // Only if rori order
+                let j: Value = j;
+                let addr = j["addr"].to_string();
+                if addr.len() > 4 {
+                    return String::from(&addr[3..addr.len()-1]);
+                }
+                return String::new();
             },
             _ => {
-                return String::from("");
+                return String::new();
             }
-        }
+        };
     }
 
     // Helpers

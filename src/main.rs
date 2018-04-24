@@ -69,7 +69,7 @@ pub struct ConfigFile {
  * Generate a config file
  */
 fn create_config_file(rori_text: &Arc<Mutex<String>>, user_text: &Arc<Mutex<String>>) {
-    *rori_text.lock().unwrap() = String::from("What RORI do you want?");
+    *rori_text.lock().unwrap() = String::from("RORI needs a few things to begin...\nFirst, what is the address of the RORI you want to connect?");
     let mut rori_server = String::new();
     let mut rori_ring_id = String::new();
     let mut done = false;
@@ -79,7 +79,12 @@ fn create_config_file(rori_text: &Arc<Mutex<String>>, user_text: &Arc<Mutex<Stri
             rori_server = user_entry;
             rori_ring_id = Endpoint::get_ring_id(&rori_server, &String::from("rori"));
             *user_text.lock().unwrap() = String::new();
-            done = true;
+            println!("{:?}!", rori_ring_id);
+            if rori_ring_id == "" {
+                *rori_text.lock().unwrap() = String::from("Cannot connect to this RORI, choose another address?");
+            } else {
+                done = true;
+            }
         }
     }
 
