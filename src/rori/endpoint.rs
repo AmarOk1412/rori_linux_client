@@ -137,8 +137,19 @@ impl Endpoint {
                                 .arg(&interaction.body)
                                 .spawn()
                                 .expect("music.py command failed to start");
+                        } else if interaction.datatype == "alarm" {
+                            Command::new("python3")
+                                .arg("scripts/alarm.py")
+                                .arg(&interaction.body)
+                                .spawn()
+                                .expect("alarm.py command failed to start");
+                        } else if interaction.datatype == "command" {
+                            Command::new("sh")
+                                .arg("-c")
+                                .arg(&interaction.body)
+                                .spawn()
+                                .expect("alarm.py command failed to start");
                         }
-
                     }
                 }
             };
