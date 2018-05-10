@@ -81,18 +81,35 @@ impl Endpoint {
         Ok(manager)
     }
 
-    pub fn login(manager: Arc<Mutex<Endpoint>>, user_logged: &Arc<Mutex<bool>>) {
-        // TODO 1. get if ring_id already match to username (=logged)
+    pub fn login(manager: Arc<Mutex<Endpoint>>, user_logged: &Arc<Mutex<bool>>, rori_text: Arc<Mutex<String>>,) {
+        // 1. get if ring_id already match to username (=logged)
+        let rori_server = manager.lock().unwrap().rori_server.clone();
+        let username = manager.lock().unwrap().account.alias.clone();
+        let ring_id = manager.lock().unwrap().account.ring_id.clone();
+        let current_username = Endpoint::get_username_from_api(&rori_server, &ring_id);
+        if current_username == username  {
+            *rori_text.lock().unwrap() = String::new();
+            *user_logged.lock().unwrap() = true;
+            info!("{} logged, setting types", username);
+            manager.lock().unwrap().send_interaction_to_rori("/set_types music command alarm", "rori/command");
+            return;
+        } else if current_username != "" {
+            panic!("{} found for current client, but {} wanted. Please check config", current_username, username);
+        }
         // 2. if not, get if username already registered
         let rori_server = manager.lock().unwrap().rori_server.clone();
         let acc_linked = manager.lock().unwrap().account.clone();
         let username_registered = Endpoint::get_ring_id(&rori_server, &acc_linked.alias) != "";
         if username_registered {
-            // 3. TODO if already registered, /link
+            // 3. if already registered, /link
+            info!("{} needs to be linked", username);
             manager.lock().unwrap().send_interaction_to_rori(&*format!("/link {}", acc_linked.alias), "rori/command");
+            *rori_text.lock().unwrap() = String::from("Linking with another device...");
         } else {
             // 4. else /register
+            info!("registering {}...", username);
             manager.lock().unwrap().send_interaction_to_rori(&*format!("/register {}", acc_linked.alias), "rori/command");
+            *rori_text.lock().unwrap() = String::from("Waiting registering confirmation...");
         }
     }
 
@@ -124,6 +141,7 @@ impl Endpoint {
                                     let j: Value = j;
                                     if j["registered"].to_string() == "true" {
                                         *user_logged.lock().unwrap() = true;
+                                        m.send_interaction_to_rori("/set_types music command alarm", "rori/command");
                                         *rori_text.lock().unwrap() = String::new();
                                     }
                                 },
@@ -199,6 +217,42 @@ impl Endpoint {
                     return String::from(&addr[3..addr.len()-1]);
                 }
                 return String::new();
+            },
+            _ => {
+                return String::new();
+            }
+        };
+    }
+
+    pub fn get_username_from_api(nameserver: &String, ring_id: &String) -> String {
+        // NOTE/TODO: Remove this line when RORI will gennerate certificate with Let's Encrypt
+        // For now, self signed certificate and local dev, so it's OK
+        let client = reqwest::ClientBuilder::new()
+                    .danger_disable_certificate_validation_entirely()
+                    .build().unwrap();
+
+        let mut ns = nameserver.clone();
+        if ns.find("http") != Some(0) {
+            ns = String::from("https://") + &*ns;
+        }
+        let mut res = match client.get(&*format!("{}/addr/{}", ns, ring_id)).send() {
+            Ok(res) => res,
+            _ => {
+                return String::new();
+            }
+        };
+
+        let mut body: String = String::new();
+        let _ = res.read_to_string(&mut body);
+        match from_str(&body) {
+            Ok(j) => {
+                // Only if rori order
+                let j: Value = j;
+                if j["name"].is_null() {
+                    return String::new();
+                } else {
+                    return j["name"].as_str().unwrap_or("").to_string();
+                }
             },
             _ => {
                 return String::new();
@@ -318,7 +372,7 @@ impl Endpoint {
                         account.alias = String::from(value);
                     }
                     if key == "Account.username" {
-                        account.ring_id = String::from(value);
+                        account.ring_id = String::from(value).replace("ring:", "");
                     }
                 }
             }
@@ -430,7 +484,7 @@ impl Endpoint {
      * @param body text to send
      * @return the interaction id if success. TODO, watch message status (if received)
      */
-    pub fn send_interaction_to_rori(&self, body: &str, datatype: &str) -> u64 {
+    fn send_interaction_to_rori(&self, body: &str, datatype: &str) -> u64 {
         let mut payloads: HashMap<&str, &str> = HashMap::new();
         payloads.insert(datatype, body);
         let payloads = Dict::new(payloads.iter());
