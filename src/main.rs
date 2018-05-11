@@ -177,10 +177,7 @@ fn main() {
                            config["rori_ring_id"].as_str().unwrap_or(""))
             .ok().expect("Can't initialize ConfigurationEndpoint"))
         );
-        Endpoint::login(shared_endpoint.clone(), &user_logged);
-        // HACK For now... waiting for certificate validation
-        *user_logged.lock().unwrap() = true;
-        *rori_text.lock().unwrap() = String::new();
+        Endpoint::login(shared_endpoint.clone(), &user_logged, rori_text.clone());
         Endpoint::handle_signals(shared_endpoint, stop_cloned, rori_text, user_text, user_logged);
     });
     let mut engine = qmlrs::Engine::new();
