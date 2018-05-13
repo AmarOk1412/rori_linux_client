@@ -146,7 +146,14 @@ impl Endpoint {
                                     }
                                 },
                                 _ => {
-                                    *rori_text.lock().unwrap() = String::from(interaction.body);
+                                    *rori_text.lock().unwrap() = interaction.body.clone();
+                                    Command::new("mimic")
+                                        .arg("-t")
+                                        .arg(&interaction.body)
+                                        .arg("-voice")
+                                        .arg("slt_hts")
+                                        .spawn()
+                                        .expect("mimic command failed to start");
                                 }
                             };
                         } else if interaction.datatype == "music" {
