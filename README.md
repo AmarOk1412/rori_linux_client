@@ -20,6 +20,11 @@ This is some examples of what I will do with **RORI** (as soon as the migration 
 + Send a picture to **RORI** and ask to store this pict in the *best* folder.
 + Ask **RORI** to send me a notification before a rendez-vous.
 
+# Install
+
+First, you will need [mimic](https://github.com/MycroftAI/mimic) for the TTS capability (read install instructions or run `make mimic`).
+
+Then, `make build` to compile the client and `make run` to execute it.
 
 ## Contribute
 

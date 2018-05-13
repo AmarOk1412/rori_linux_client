@@ -104,12 +104,12 @@ impl Endpoint {
             // 3. if already registered, /link
             info!("{} needs to be linked", username);
             manager.lock().unwrap().send_interaction_to_rori(&*format!("/link {}", acc_linked.alias), "rori/command");
-            *rori_text.lock().unwrap() = String::from("Linking with another device...");
+            Endpoint::say(&String::from("Linking with another device..."), &rori_text);
         } else {
             // 4. else /register
             info!("registering {}...", username);
             manager.lock().unwrap().send_interaction_to_rori(&*format!("/register {}", acc_linked.alias), "rori/command");
-            *rori_text.lock().unwrap() = String::from("Waiting registering confirmation...");
+            Endpoint::say(&String::from("Waiting registering confirmation..."), &rori_text);
         }
     }
 
@@ -146,14 +146,7 @@ impl Endpoint {
                                     }
                                 },
                                 _ => {
-                                    *rori_text.lock().unwrap() = interaction.body.clone();
-                                    Command::new("mimic")
-                                        .arg("-t")
-                                        .arg(&interaction.body)
-                                        .arg("-voice")
-                                        .arg("slt_hts")
-                                        .spawn()
-                                        .expect("mimic command failed to start");
+                                    Endpoint::say(&interaction.body, &rori_text);
                                 }
                             };
                         } else if interaction.datatype == "music" {
@@ -265,6 +258,17 @@ impl Endpoint {
                 return String::new();
             }
         };
+    }
+
+    pub fn say(body: &String, rori_text: &Arc<Mutex<String>>) {
+        *rori_text.lock().unwrap() = body.clone();
+        Command::new("mimic")
+            .arg("-t")
+            .arg(body)
+            .arg("-voice")
+            .arg("slt_hts")
+            .spawn()
+            .expect("mimic command failed to start");
     }
 
     // Helpers

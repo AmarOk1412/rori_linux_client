@@ -69,7 +69,8 @@ pub struct ConfigFile {
  * Generate a config file
  */
 fn create_config_file(rori_text: &Arc<Mutex<String>>, user_text: &Arc<Mutex<String>>) {
-    *rori_text.lock().unwrap() = String::from("RORI needs a few things to begin...\nFirst, what is the address of the RORI you want to connect?");
+    let to_say = String::from("RORI needs a few things to begin...\nFirst, what is the address of the RORI you want to connect?");
+    Endpoint::say(&to_say, &rori_text);
     let mut rori_server = String::new();
     let mut rori_ring_id = String::new();
     let mut done = false;
@@ -81,14 +82,16 @@ fn create_config_file(rori_text: &Arc<Mutex<String>>, user_text: &Arc<Mutex<Stri
             *user_text.lock().unwrap() = String::new();
             println!("{:?}!", rori_ring_id);
             if rori_ring_id == "" {
-                *rori_text.lock().unwrap() = String::from("Cannot connect to this RORI, choose another address?");
+                let to_say = String::from("Cannot connect to this RORI, choose another address?");
+                Endpoint::say(&to_say, &rori_text);
             } else {
                 done = true;
             }
         }
     }
 
-    *rori_text.lock().unwrap() = String::from("Under what username?");
+    let to_say = String::from("Under what username?");
+    Endpoint::say(&to_say, &rori_text);
     let mut username = String::new();
     done = false;
     while !done {
@@ -170,7 +173,8 @@ fn main() {
         let config: Value = from_str(&*config).ok()
                             .expect("Incorrect config file. Please check config.json");
 
-        *rori_text.lock().unwrap() = String::from("Connecting...");
+        let to_say = String::from("Connection...");
+        Endpoint::say(&to_say, &rori_text);
         let shared_endpoint : Arc<Mutex<Endpoint>> = Arc::new(Mutex::new(
             Endpoint::init(config["ring_id"].as_str().unwrap_or(""),
                            config["rori_server"].as_str().unwrap_or(""),
