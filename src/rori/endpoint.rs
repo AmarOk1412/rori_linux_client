@@ -134,7 +134,7 @@ impl Endpoint {
                 info!("New interation for {}: {}", account_id, interaction);
                 if account_id == m.account.id {
                     if interaction.author_ring_id == rori_ring_id && interaction.body != "" {
-                        if interaction.datatype == "text/plain" {
+                        if interaction.datatype == "rori/message" {
                             match from_str(&interaction.body) {
                                 Ok(j) => {
                                     // Only if rori order
@@ -146,9 +146,11 @@ impl Endpoint {
                                     }
                                 },
                                 _ => {
-                                    Endpoint::say(&interaction.body, &rori_text);
+                                    warn!("Message received, but not recognized: {}", interaction.body);
                                 }
                             };
+                        } else if interaction.datatype == "text/plain" {
+                            Endpoint::say(&interaction.body, &rori_text);
                         } else if interaction.datatype == "music" {
                             Command::new("python3")
                                 .arg("scripts/music.py")
