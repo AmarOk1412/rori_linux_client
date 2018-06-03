@@ -50,6 +50,7 @@ pub struct Endpoint {
     ring_dbus: &'static str,
     configuration_path: &'static str,
     configuration_iface: &'static str,
+    to_say: Arc<Mutex<Vec<String>>>,
 }
 
 impl Endpoint {
@@ -67,6 +68,7 @@ impl Endpoint {
             ring_dbus: "cx.ring.Ring",
             configuration_path: "/cx/ring/Ring/ConfigurationManager",
             configuration_iface: "cx.ring.Ring.ConfigurationManager",
+            to_say: Arc::new(Mutex::new(Vec::new()))
         };
         manager.account = Endpoint::build_account(ring_id);
         if !manager.account.enabled {
@@ -104,12 +106,12 @@ impl Endpoint {
             // 3. if already registered, /link
             info!("{} needs to be linked", username);
             manager.lock().unwrap().send_interaction_to_rori(&*format!("/link {}", acc_linked.alias), "rori/command");
-            Endpoint::say(&String::from("Linking with another device..."), &rori_text);
+            manager.lock().unwrap().add_to_say_queue(&String::from("Linking with another device..."));
         } else {
             // 4. else /register
             info!("registering {}...", username);
             manager.lock().unwrap().send_interaction_to_rori(&*format!("/register {}", acc_linked.alias), "rori/command");
-            Endpoint::say(&String::from("Waiting registering confirmation..."), &rori_text);
+            manager.lock().unwrap().add_to_say_queue(&String::from("Waiting registering confirmation..."));
         }
     }
 
@@ -127,6 +129,7 @@ impl Endpoint {
         let rori_ring_id = manager.lock().unwrap().rori_ring_id.clone();
         // For each signals, call handlers.
         for i in dbus_listener.iter(100) {
+
             let mut m = manager.lock().unwrap();
             m.handle_accounts_signals(&i);
             m.handle_registration_changed(&i);
@@ -150,7 +153,7 @@ impl Endpoint {
                                 }
                             };
                         } else if interaction.datatype == "text/plain" {
-                            Endpoint::say(&interaction.body, &rori_text);
+                            m.add_to_say_queue(&interaction.body);
                         } else if interaction.datatype == "music" {
                             Command::new("python3")
                                 .arg("scripts/music.py")
@@ -262,15 +265,29 @@ impl Endpoint {
         };
     }
 
-    pub fn say(body: &String, rori_text: &Arc<Mutex<String>>) {
+    pub fn mimic(body: &String, rori_text: &Arc<Mutex<String>>) {
         *rori_text.lock().unwrap() = body.clone();
         Command::new("mimic")
             .arg("-t")
             .arg(body)
             .arg("-voice")
             .arg("slt_hts")
-            .spawn()
+            .output()
             .expect("mimic command failed to start");
+    }
+
+    pub fn add_to_say_queue(&mut self, body: &String) {
+        self.to_say.lock().unwrap().push(body.clone());
+    }
+
+    pub fn process_say(manager: Arc<Mutex<Endpoint>>, rori_text: &Arc<Mutex<String>>) {
+        let manager = manager.lock().unwrap();
+        let mut m = manager.to_say.lock().unwrap();
+        let to_say = m.clone();
+        m.clear();
+        for sentences in to_say {
+            Endpoint::mimic(&sentences, rori_text);
+        }
     }
 
     // Helpers

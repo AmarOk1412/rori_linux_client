@@ -70,7 +70,7 @@ pub struct ConfigFile {
  */
 fn create_config_file(rori_text: &Arc<Mutex<String>>, user_text: &Arc<Mutex<String>>) {
     let to_say = String::from("RORI needs a few things to begin...\nFirst, what is the address of the RORI you want to connect?");
-    Endpoint::say(&to_say, &rori_text);
+    Endpoint::mimic(&to_say, &rori_text);
     let mut rori_server = String::new();
     let mut rori_ring_id = String::new();
     let mut done = false;
@@ -83,7 +83,7 @@ fn create_config_file(rori_text: &Arc<Mutex<String>>, user_text: &Arc<Mutex<Stri
             println!("{:?}!", rori_ring_id);
             if rori_ring_id == "" {
                 let to_say = String::from("Cannot connect to this RORI, choose another address?");
-                Endpoint::say(&to_say, &rori_text);
+                Endpoint::mimic(&to_say, &rori_text);
             } else {
                 done = true;
             }
@@ -91,7 +91,7 @@ fn create_config_file(rori_text: &Arc<Mutex<String>>, user_text: &Arc<Mutex<Stri
     }
 
     let to_say = String::from("Under what username?");
-    Endpoint::say(&to_say, &rori_text);
+    Endpoint::mimic(&to_say, &rori_text);
     let mut username = String::new();
     done = false;
     while !done {
@@ -174,15 +174,29 @@ fn main() {
                             .expect("Incorrect config file. Please check config.json");
 
         let to_say = String::from("Connection...");
-        Endpoint::say(&to_say, &rori_text);
+        Endpoint::mimic(&to_say, &rori_text);
         let shared_endpoint : Arc<Mutex<Endpoint>> = Arc::new(Mutex::new(
             Endpoint::init(config["ring_id"].as_str().unwrap_or(""),
                            config["rori_server"].as_str().unwrap_or(""),
                            config["rori_ring_id"].as_str().unwrap_or(""))
             .ok().expect("Can't initialize ConfigurationEndpoint"))
         );
+        let stop_say = stop_cloned.clone();
+        let say_endpoint = shared_endpoint.clone();
+        let say_rori_text = rori_text.clone();
+        let say_loop = thread::spawn(move || {
+            let fivehundrems = Duration::from_millis(500);
+            loop {
+                Endpoint::process_say(say_endpoint.clone(), &say_rori_text);
+                if stop_say.load(Ordering::SeqCst) {
+                    break;
+                }
+                thread::sleep(fivehundrems);
+            }
+        });
         Endpoint::login(shared_endpoint.clone(), &user_logged, rori_text.clone());
         Endpoint::handle_signals(shared_endpoint, stop_cloned, rori_text, user_text, user_logged);
+        let _ = say_loop.join();
     });
     let mut engine = qmlrs::Engine::new();
     engine.load_local_file("ui/rori.qml");
