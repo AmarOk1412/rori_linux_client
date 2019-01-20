@@ -197,7 +197,7 @@ impl Endpoint {
         // NOTE/TODO: Remove this line when RORI will gennerate certificate with Let's Encrypt
         // For now, self signed certificate and local dev, so it's OK
         let client = reqwest::ClientBuilder::new()
-                    .danger_disable_certificate_validation_entirely()
+                    .danger_accept_invalid_certs(true)
                     .build().unwrap();
 
         let mut ns = nameserver.clone();
@@ -233,7 +233,7 @@ impl Endpoint {
         // NOTE/TODO: Remove this line when RORI will gennerate certificate with Let's Encrypt
         // For now, self signed certificate and local dev, so it's OK
         let client = reqwest::ClientBuilder::new()
-                    .danger_disable_certificate_validation_entirely()
+                    .danger_accept_invalid_certs(true)
                     .build().unwrap();
 
         let mut ns = nameserver.clone();
