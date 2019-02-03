@@ -185,7 +185,12 @@ impl Endpoint {
             let utext = user_text.lock().unwrap().clone();
             if utext != "" {
                 *user_text.lock().unwrap() = String::new();
-                m.send_interaction_to_rori(&*utext, "text/plain");
+
+                let mut datatype = "text/plain";
+                if m.is_a_command(&utext) {
+                    datatype = "rori/command";
+                }
+                m.send_interaction_to_rori(&*utext, datatype);
             }
             if stop.load(Ordering::SeqCst) {
                 break;
@@ -265,13 +270,31 @@ impl Endpoint {
         };
     }
 
+    /**
+     * Detect if a message is a correct command
+     * Based on https://github.com/AmarOk1412/rori_core/wiki/Custom-datatypes-handling
+     * NOTE: some commands are forbidden user side (like datatypes management)
+     * @param self
+     * @param text to verify
+     * @return true if it's a correct command
+     */
+    fn is_a_command(&self, text: &String) -> bool {
+        let v: Vec<&str> = text.split(' ').collect();
+        if v.len() == 0 {
+            return false
+        }
+        let whitelist_commands = ["/register", "/unregister",
+                                  "/add_device", "/rm_device", "/link"];
+        whitelist_commands.contains(&v[0])
+    }
+
     pub fn mimic(body: &String, rori_text: &Arc<Mutex<String>>) {
         *rori_text.lock().unwrap() = body.clone();
         Command::new("mimic")
             .arg("-t")
             .arg(body)
             .arg("-voice")
-            .arg("slt_hts")
+            .arg("slt")
             .output()
             .expect("mimic command failed to start");
     }
@@ -460,11 +483,20 @@ impl Endpoint {
         let author_ring_id = author_ring_id.unwrap().to_string();
         let mut body = String::new();
         let mut datatype = String::new();
+        let mut supported_types: Vec<String> = Vec::new();
+        supported_types.push(String::from("music"));
+        supported_types.push(String::from("command"));
+        supported_types.push(String::from("rori/message"));
+        supported_types.push(String::from("alarm"));
+        supported_types.push(String::from("text/plain"));
         for detail in payloads.unwrap() {
             match detail {
                 (key, value) => {
-                    datatype = key.to_string();
-                    body = value.to_string();
+                    if supported_types.contains(&key.to_string()) {
+                        datatype = key.to_string();
+                        body = value.to_string();
+                    }
+                    // Else metadatas. Unused for now
                 }
             }
         };
