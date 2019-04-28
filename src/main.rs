@@ -25,13 +25,16 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  **/
 
+extern crate bodyparser;
 extern crate dbus;
 extern crate env_logger;
+extern crate iron;
 #[macro_use]
 extern crate log;
 #[macro_use]
 extern crate qmlrs;
 extern crate reqwest;
+extern crate router;
 extern crate serde;
 extern crate serde_json;
 #[macro_use]
@@ -41,6 +44,7 @@ extern crate time;
 pub mod rori;
 pub mod sharedprop;
 
+use rori::api::API;
 use rori::account::Account;
 use rori::endpoint::Endpoint;
 use serde_json::{Value, from_str};
@@ -146,10 +150,14 @@ fn main() {
     let shared_prop = SharedProp {
         rori_text: Arc::new(Mutex::new(String::new())),
         user_text: Arc::new(Mutex::new(String::new())),
+        api_text: Arc::new(Mutex::new(String::new())),
+        is_listening: Arc::new(Mutex::new(false)),
         logged: Arc::new(Mutex::new(false)),
     };
     let rori_text = shared_prop.rori_text.clone();
     let user_text = shared_prop.user_text.clone();
+    let api_text = shared_prop.api_text.clone();
+    let api_listening = shared_prop.is_listening.clone();
     let user_logged = shared_prop.logged.clone();
     let stop = Arc::new(AtomicBool::new(false));
     let stop_cloned = stop.clone();
@@ -198,10 +206,18 @@ fn main() {
         Endpoint::handle_signals(shared_endpoint, stop_cloned, rori_text, user_text, user_logged);
         let _ = say_loop.join();
     });
+
+    let api_thread = thread::spawn(move || {
+        let mut api = API::new(api_text, api_listening);
+        api.start();
+    });
+
     let mut engine = qmlrs::Engine::new();
     engine.load_local_file("ui/rori.qml");
     engine.set_property("sharedprop", shared_prop);
     engine.exec();
+
     stop.store(false, Ordering::SeqCst);
     let _ = handle_signals.join();
+    let _ = api_thread.join();
 }

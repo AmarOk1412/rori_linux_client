@@ -13,3 +13,7 @@ serde = "1.0.34"
 serde_derive = "1.0.34"
 serde_json = "1.0.13"
 time = "0.1"
+# For the API, will be removed in the future
+bodyparser = "0.8.0"
+iron = "0.6.0"
+router = "0.6.0"

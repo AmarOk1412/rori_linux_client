@@ -22,9 +22,13 @@ This is some examples of what I will do with **RORI** (as soon as the migration 
 
 # Install
 
-First, you will need [mimic](https://github.com/MycroftAI/mimic) for the TTS capability (read install instructions or run `make mimic`).
+First, you will need [mimic](https://github.com/MycroftAI/mimic) for the TTS capability (read install instructions or run `make dep`, this will install mimic and SpeechRecognition).
 
 Then, `make build` to compile the client and `make run` to execute it.
+
+# Speech to text
+
+For now, the client uses a Python module to perform speech recognition: Speech Recognition (see `scripts/stt.py`). It's a separate script which interact with the client via an API. This will be replaced when DeepSpeech will be good. To directly run the client with the Speech Recognition enabled, just run `make run_with_stt`.
 
 ## Contribute
 

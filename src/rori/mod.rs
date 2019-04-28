@@ -25,6 +25,7 @@
  * SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  **/
 
+pub mod api;
 pub mod account;
 pub mod interaction;
 pub mod endpoint;

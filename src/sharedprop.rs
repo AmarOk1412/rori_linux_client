@@ -32,12 +32,22 @@ use qmlrs;
  pub struct SharedProp {
      pub rori_text: Arc<Mutex<String>>,
      pub user_text: Arc<Mutex<String>>,
+     pub api_text: Arc<Mutex<String>>,
+     pub is_listening: Arc<Mutex<bool>>,
      pub logged: Arc<Mutex<bool>>
  }
 
  impl SharedProp {
+     fn set_api_text(&self, text: String) {
+         *self.api_text.lock().unwrap() = text;
+     }
+
      fn set_user_text(&self, text: String) {
          *self.user_text.lock().unwrap() = text;
+     }
+
+     fn get_api_text(&self) -> String {
+         self.api_text.lock().unwrap().clone()
      }
 
      fn get_rori_text(&self) -> String {
@@ -47,10 +57,17 @@ use qmlrs;
      fn get_logged(&self) -> bool {
          self.logged.lock().unwrap().clone()
      }
+
+     fn get_is_listening(&self) -> bool {
+         self.is_listening.lock().unwrap().clone()
+     }
 }
 
  Q_OBJECT! { SharedProp:
+     slot fn set_api_text(String);
      slot fn set_user_text(String);
+     slot fn get_api_text();
      slot fn get_rori_text();
      slot fn get_logged();
+     slot fn get_is_listening();
  }

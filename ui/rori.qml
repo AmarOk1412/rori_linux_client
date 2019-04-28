@@ -20,6 +20,7 @@ ApplicationWindow {
     property int textRoriY: 6 * Screen.height / 10
     property int textUserY: 8 * Screen.height / 10
     property bool logged: false
+    property bool is_listening: false
     property int loggedStep: 0
     property int opacityR: 255
 
@@ -86,6 +87,13 @@ ApplicationWindow {
             ctx.strokeStyle = 'rgba(255, 218, 211, ' + opacityR/255. +')'
             ctx.lineWidth = height / 100
             ctx.stroke()
+
+            if (is_listening) {
+              ctx.beginPath()
+              ctx.arc(Screen.width - 20, 20, 10, 0, 2 * Math.PI)
+              ctx.fillStyle = 'rgba(255, 218, 211, 1)'
+              ctx.fill()
+            }
 
             ctx.beginPath()
             ctx.scale(2, 0.1)
@@ -179,6 +187,7 @@ ApplicationWindow {
         if (!logged) return
         unshowRORIText.start()
         upRORIText.start()
+        sharedprop.set_api_text("")
       }
 
       Keys.onReturnPressed: {
@@ -207,6 +216,14 @@ ApplicationWindow {
             showRORIText.start()
             downRORIText.start()
           }
+
+          var api_text = sharedprop.get_api_text()
+          if (api_text != textUser.text && api_text != "") {
+            textUser.text = api_text
+            sharedprop.set_user_text(api_text)
+          }
+
+          is_listening = sharedprop.get_is_listening()
         }
     }
 
