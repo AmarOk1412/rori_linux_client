@@ -171,7 +171,7 @@ impl Endpoint {
                                 .arg("-c")
                                 .arg(&interaction.body)
                                 .spawn()
-                                .expect("alarm.py command failed to start");
+                                .expect("command failed to start");
                         }
                     }
                 }
