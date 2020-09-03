@@ -28,9 +28,8 @@ firefox-nightly -new-tab https://www.reddit.com/
 firefox-nightly -new-tab https://linuxfr.org/
 firefox-nightly -new-tab https://www.behance.net/
 firefox-nightly -new-tab https://cyberguerre.numerama.com/
-firefox-nightly -new-tab https://itavisen.no/
+firefox-nightly -new-tab https://digi.no/
 firefox-nightly -new-tab http://www.cw.no/
-firefox-nightly -new-tab https://www.aftenposten.no/
 sleep 3
 
 firefox-nightly -new-window https://openclassrooms.com/forum/categorie/langage-c

@@ -7,17 +7,17 @@ contrib_stt:
 stt:
 	python3 scripts/stt.py&
 
-mimic:
+mimic1:
 	git clone https://github.com/MycroftAI/mimic.git
-	cd mimic
-	./dependencies.sh --prefix="/usr/local"
-	./autogen.sh
-	./configure --prefix="/usr/local"
-	make -j 8
+	cd mimic && \
+	./dependencies.sh --prefix="/usr/local" && \
+	./autogen.sh && \
+	./configure --disable-lang-indic --prefix="/usr/local" && \
+	make -j 8 && \
 	sudo make -j 8 install
-	cd ..
+	touch .mimic1
 
-dep: contrib_stt mimic
+dep: contrib_stt mimic1
 
 build:
 	cargo build

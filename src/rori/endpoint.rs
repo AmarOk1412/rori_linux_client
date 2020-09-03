@@ -478,8 +478,8 @@ impl Endpoint {
         let msg = if let &ConnectionItem::Signal(ref signal) = ci { signal } else { return None };
         if &*msg.interface().unwrap() != "cx.ring.Ring.ConfigurationManager" { return None };
         if &*msg.member().unwrap() != "incomingAccountMessage" { return None };
-        // incomingAccountMessage return three arguments
-        let (account_id, author_ring_id, payloads) = msg.get3::<&str, &str, Dict<&str, &str, _>>();
+        // incomingAccountMessage return four arguments
+        let (account_id, _msg_id, author_ring_id, payloads) = msg.get4::<&str, &str, &str, Dict<&str, &str, _>>();
         let author_ring_id = author_ring_id.unwrap().to_string();
         let mut body = String::new();
         let mut datatype = String::new();
