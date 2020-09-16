@@ -3,6 +3,8 @@ all: build run
 contrib_stt:
 	pip3 install --upgrade pocketsphinx --user
 	pip3 install --upgrade SpeechRecognition --user
+	sudo dnf install portaudio-devel -y
+	pip3 install --upgrade PyAudio --user
 
 stt:
 	python3 scripts/stt.py&
